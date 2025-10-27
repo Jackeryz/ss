@@ -1,110 +1,116 @@
+STACK SEGMENT
+    db 100h dup(?)
+STACK ENDS
 DATA SEGMENT
-MSG1 DB 10,13,"ENTER A STRING: $"
-MSG2 DB 10,13,"NUMBER OF VOWELS = $"
-STR DB 50 DUP(?) ; storage for input
-COUNT DB ? ; number of vowels
-DISP DB 5 DUP('$') ; buffer to display result (max 5 digits)
+    msg1 db 10,13,"Enter a string : $"
+    msg2 db 10,13,"Number of vowels is : $"
+    str db 100 dup(?)
 DATA ENDS
-
 CODE SEGMENT
-ASSUME CS:CODE, DS:DATA
-
 START:
-; Initialize DS
-MOV AX, DATA
-MOV DS, AX
+    ASSUME CS:CODE, DS:DATA, SS:STACK
+    mov ax,DATA
+    mov ds,ax
+    mov ax,STACK
+    mov ss,ax
+    mov sp,100h
 
-; Show prompt
-LEA DX, MSG1
-MOV AH, 09h
-INT 21h
+    lea dx,msg1
+    mov ah,09h
+    int 21h
 
-; Read string using DOS function (AH=0Ah) - buffered input
-; Define input buffer in STR:
-; STR[0] = max chars allowed (let's assume 49)
-; STR[1] = number of chars entered
-; STR[2...] = actual characters
+    xor cx,cx
+    lea si,str
 
-MOV BYTE PTR STR, 49 ; set max chars
-LEA DX, STR
-MOV AH, 0Ah
-INT 21h
+READ:
+    mov ah,01h
+    int 21h
+    cmp al,13
+    je OK
+    mov [si],al
+    inc cl
+    inc si
+    jmp READ
 
-; Initialize counters
-MOV CL, [STR+1] ; number of chars entered
-MOV CH, 0
-LEA SI, STR+2 ; point to first char
-XOR BL, BL ; BL = vowel count = 0
+OK:
+    xor si,si
+    lea si,str
+    xor bx,bx
 
-NEXT_CHAR:
-CMP CL, 0 ; processed all characters?
-JE PRINT_RESULT
+VOWEL:
+    mov al,[si]
+    cmp cl,0
+    je DONE
 
-MOV AL, [SI] ; get current char
-; Convert to uppercase for easy checking
-CMP AL, 'a'
-JB CHECK_VOWEL
-CMP AL, 'z'
-JA CHECK_VOWEL
-SUB AL, 20h ; make lowercase to uppercase (a→A)
+    cmp al,'A'
+    je COUNT
+    cmp al,'E'
+    je COUNT
+    cmp al,'I'
+    je COUNT
+    cmp al,'O'
+    je COUNT
+    cmp al,'U'
+    je COUNT
+    cmp al,'a'
+    je COUNT
+    cmp al,'e'
+    je COUNT
+    cmp al,'i'
+    je COUNT
+    cmp al,'o'
+    je COUNT
+    cmp al,'u'
+    je COUNT
+    jmp NEXT
 
-CHECK_VOWEL:
-CMP AL, 'A'
-JE IS_VOWEL
-CMP AL, 'E'
-JE IS_VOWEL
-CMP AL, 'I'
-JE IS_VOWEL
-CMP AL, 'O'
-JE IS_VOWEL
-CMP AL, 'U'
-JE IS_VOWEL
-JMP NEXT_STEP
+COUNT:
+    inc bx
+NEXT:
+    inc si
+    dec cl
+    jmp VOWEL
 
-IS_VOWEL:
-INC BL ; increase vowel count
-
-NEXT_STEP:
-INC SI
-DEC CL
-JMP NEXT_CHAR
-
-; ---- Print Result ----
-PRINT_RESULT:
-MOV COUNT, BL ; store count
-LEA DX, MSG2
-MOV AH, 09h
-INT 21h
-
-; Convert number in BL → ASCII string in DISP
-MOV AL, COUNT
-XOR AH, AH
-MOV CX, 0
-LEA DI, DISP+4 ; point to end of buffer
-MOV BYTE PTR [DI], '$' ; string terminator
-DEC DI
-
-CONVERT_LOOP:
-MOV DX, 0
-MOV BX, 10
-DIV BX ; AX / 10
-ADD DL, 30h ; remainder → ASCII
-MOV [DI], DL
-DEC DI
-INC CX
-CMP AX, 0
-
-JNE CONVERT_LOOP
-
-INC DI
-LEA DX, [DI]
-MOV AH, 09h
-INT 21h
-
-; ---- Exit ----
 DONE:
-MOV AH, 4Ch
-INT 21h
+
+    lea dx,msg2
+    mov ah,09h
+    int 21h
+    cmp bx,0
+    jne NORMAL
+    mov dx,'0'
+    mov ah,02h
+    int 21h
+    jmp EXIT
+
+NORMAL:
+    xor cx,cx
+    mov ax,bx
+    mov bx,10
+    xor dx,dx
+    
+CONVERT:
+    cmp ax,0
+    je PRINT    
+    div bx
+    push dx
+    inc cl
+    xor dx,dx
+    jmp CONVERT
+
+PRINT:
+    cmp cl,0
+    je EXIT
+    pop dx
+    add dl,'0'
+    mov ah,02h
+    int 21h
+    dec cl
+    jmp PRINT
+
+EXIT:
+    mov ah,4ch
+    int 21h
 
 CODE ENDS
 END START

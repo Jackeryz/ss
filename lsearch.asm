@@ -1,117 +1,94 @@
-; LINEAR SEARCH PROGRAM (MASM 8086)
-; Works perfectly in DOSBox
+data segment
+    msg1 db 10,13, "Enter the number of terms : $"
+    msg2 db 10,13, "Enter the terms : $"
+    msg3 db 10,13, "Enter the key to be searched : $"
+    msgf db 10,13, "Key found at position : $"
+    msgnf db 10,13, "Key not found in the array.$"
+    n db ?
+    arr db 100 dup(?)
+    key db ?
+data ends
+code segment 
+start:
+    assume cs:code,ds:data
+    mov ax,data
+    mov ds,ax
 
-DATA SEGMENT
-    MSG1 DB 10,13,'Enter number of elements (max 10): $'
-    MSG2 DB 10,13,'Enter each element (press ENTER after each): $'
-    MSG3 DB 10,13,'Enter element to search: $'
-    MSG_FOUND DB 10,13,'Element found at position: $'
-    MSG_NOTFOUND DB 10,13,'Element not found.$'
+    lea dx,msg1
+    mov ah,09h
+    int 21h
 
-    N DB ?              ; number of elements
-    ARR DB 10 DUP(?)    ; array
-    KEY DB ?            ; search key
-    POS DB ?            ; position found
-DATA ENDS
+    mov ah,01h
+    int 21h
+    sub al,30h
+    mov n,al
 
-CODE SEGMENT
-ASSUME CS:CODE, DS:DATA
+    lea dx,msg2
+    mov ah,09h
+    int 21h
 
-START:
-    MOV AX, DATA
-    MOV DS, AX
+    xor si,si
+    xor cx,cx
+    mov cl,n
+    lea si,arr
 
-    ;----------------------------------------
-    ; Get number of elements
-    ;----------------------------------------
-    LEA DX, MSG1
-    MOV AH, 9
-    INT 21H
+read:
+    mov ah,01h
+    int 21h
+    sub al,30h
+    mov [si],al
+    inc si
+    mov dl,' '
+    mov ah,02h
+    int 21h
+    loop read
 
-    CALL READ_NUM
-    MOV N, AL
+    lea dx,msg3
+    mov ah,09h
+    int 21h
 
-    ;----------------------------------------
-    ; Get array elements
-    ;----------------------------------------
-    LEA DX, MSG2
-    MOV AH, 9
-    INT 21H
+    mov ah,01h
+    int 21h
+    sub al,30h
+    mov key,al
 
-    MOV CL, N
-    XOR CH, CH
-    XOR SI, SI
 
-READ_LOOP:
-    CALL READ_NUM
-    MOV ARR[SI], AL
-    INC SI
-    LOOP READ_LOOP
+    xor cx,cx
+    mov cl,n
+    xor si,si
+    lea si,arr
+    mov bh,0
+    mov bl,1
 
-    ;----------------------------------------
-    ; Get search key
-    ;----------------------------------------
-    LEA DX, MSG3
-    MOV AH, 9
-    INT 21H
+search:
+    mov al,[si]
+    cmp al,key
+    je found
+    inc si
+    inc bl
+    loop search
+    jmp nfound
 
-    CALL READ_NUM
-    MOV KEY, AL
+found:
+    lea dx,msgf
+    mov ah,09h
+    int 21h
 
-    ;----------------------------------------
-    ; Linear Search
-    ;----------------------------------------
-    MOV CL, N
-    XOR CH, CH
-    XOR SI, SI
-    MOV BL, 1
-    MOV BH, 0
+    mov al,bl
+    add al,30h
+    mov dl,al
+    mov ah,02h
+    int 21h
+    jmp exit
 
-SEARCH_LOOP:
-    MOV AL, ARR[SI]
-    CMP AL, KEY
-    JE FOUND
-    INC SI
-    INC BL
-    LOOP SEARCH_LOOP
-    JMP NOT_FOUND
+nfound:
+    lea dx,msgnf
+    mov ah,09h
+    int 21h
 
-FOUND:
-    MOV POS, BL
-    MOV BH, 1
+exit:
+    mov ah,4ch
+    int 21h
 
-    LEA DX, MSG_FOUND
-    MOV AH, 9
-    INT 21H
-
-    MOV AL, POS
-    ADD AL, 30H
-    MOV DL, AL
-    MOV AH, 2
-    INT 21H
-    JMP EXIT
-
-NOT_FOUND:
-    LEA DX, MSG_NOTFOUND
-    MOV AH, 9
-    INT 21H
-
-EXIT:
-    MOV AH, 4CH
-    INT 21H
-
-;----------------------------------------
-; READ_NUM: Reads a single-digit number (skips ENTER)
-;----------------------------------------
-READ_NUM PROC
-READ_AGAIN:
-    MOV AH, 1
-    INT 21H
-    CMP AL, 13        ; Is it ENTER?
-    JE READ_AGAIN     ; Ignore ENTER, read again
-    SUB AL, 30H       ; Convert ASCII → number
-    RET
-READ_NUM ENDP
-
-CODE ENDS
-END START
+code ends
+end start
